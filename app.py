@@ -1,13 +1,9 @@
 from flask import Flask, redirect, render_template, request, url_for
-from flask_login import LoginManager
 from modelo.Profesor import Profesor
 from modelo.Rango import Rango
 
 app = Flask(__name__)
-app.secret_key = '1234'
-
-login_manager = LoginManager()
-login_manager.init_app(app)
+app.config['SECRET_KEY'] = '7110c8ae51a4b5af97be6534caef90e4bb9bdcb3380af008f90b23a5d1616bf319bc298105da20fe'
 
 profesores = [
     Profesor("Suzuki", "suzuki@boyobushido.jp", "1234", Rango.Sensei),
@@ -15,13 +11,49 @@ profesores = [
     Profesor("Shigueru", "shigueru@boyobushido.jp", "123456", Rango.Profesor)
 ]
 
-app.route("/")
+usuarioLogueado = Profesor("", "", "", Rango.Null)
+
+@app.route("/")
+@app.route("/index")
 def index():
-    return "<h2>Bienvenido!</h2><br><a href='logon.html'>Crear usuario</a>"
+    return render_template('index.html')
+
+# Iniciar sesión
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    global usuarioLogueado
+    global profesores
+    
+    # Ya logueado
+    if usuarioLogueado.email is not "" and request.method == "GET":
+        return render_template('index.html')
+   
+    # Method POST
+    if request.method == "POST":
+        usuAux = Profesor.getUser(request.form.get("email"), profesores)
+        if usuAux is not None and usuAux.check_password(request.form.get("contraseña")):
+            usuarioLogueado = usuAux
+            print("Profesor " + usuarioLogueado.nombre + " logueado")
+            return redirect(url_for('index'))
+    return render_template('login.html')
+    
+
+# Cerrar sesión
+@app.route('/logout')
+def logout():
+    global usuarioLogueado
+    if usuarioLogueado.email is not "": # Si hay usuario logueado
+        print("Profesor " + usuarioLogueado.nombre + " ha cerrado sesión")
+        usuarioLogueado.setNull()
+    return redirect(url_for('index'))
 
 # Creación de usuario
 @app.route("/logon", methods=['GET', 'POST'])
-def registro():
+def logon():
+    global usuarioLogueado
+    if usuarioLogueado.rangoProfesor is not Rango.Sensei:
+        return redirect(url_for('index'))
+    
     if request.method == 'POST':
         nombre = request.form['nombre']
         email = request.form['email']
@@ -38,11 +70,9 @@ def registro():
             case _:
                 rangoProfesor = Rango.Null
 
-        profesorNuevo = Profesor(
-            nombre=nombre, email=email, contraseña=contraseña, rangoProfesor=rangoProfesor
-        )
+        profesorNuevo = Profesor(nombre, email, contraseña, rangoProfesor)
         profesores.append(profesorNuevo)
-        print("Profesor registrado correctamente: " + profesorNuevo.__str__)
+        print("Profesor registrado correctamente: " + profesorNuevo.nombre)
 
         return redirect(url_for('index'))
     return render_template('logon.html')
