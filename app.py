@@ -55,3 +55,6 @@ def logout():
     print("Se va a cerrar sesión de usuario")
     logout_user()
     return redirect(url_for('index'))
+
+if __name__ == "__main__":
+    app.run(debug=True)
