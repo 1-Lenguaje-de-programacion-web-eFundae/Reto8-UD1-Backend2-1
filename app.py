@@ -14,6 +14,7 @@ app.config['SECRET_KEY'] = '7110c8ae51a4b5af97be6534caef90e4bb9bdcb3380af008f90b
 
 login_manager = LoginManager(app)
 listaUsers = ListaUsers()
+listaReservas = ListaReservas()
 
 @login_manager.user_loader
 def load_user(user_id : int):
@@ -52,6 +53,34 @@ def logon():
         print("Acceso no autorizado")
         return redirect(url_for("index"))
     
+    if request.method == "POST":
+        nombre = request.form.get("nombre")
+        email = request.form.get("email")
+        contraseña = request.form.get("contraseña")
+        rangoStr = request.form.get("rango")
+        usuAux = listaUsers.get_user(email)
+        rangoEnum = Rango.NULL
+
+        match rangoStr:
+            case "SENSEI":
+                rangoEnum = Rango.SENSEI
+            case "MAESTRO":
+                rangoEnum = Rango.MAESTRO
+            case "PROFESOR":
+                rangoEnum = Rango.PROFESOR
+
+        # Comprobación de que no exista un usuario con ese email
+        if usuAux is None:
+            nuevoUsuario = Usuario(
+                listaUsers.users.__len__() + 1, nombre, email, password=contraseña, rango=rangoEnum
+            )
+            listaUsers.addUser(nuevoUsuario)
+            print("Usuario {} creado!".format(email))
+            return redirect(url_for("index"))
+        else:
+            print("Ya existe un usuario con el correo {}".format(email))
+            return redirect(url_for("logon"))
+    
     return render_template("logon_form.html")
 
 @app.route('/logout')
@@ -60,7 +89,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-@app.route("/nueva-reserva")
+@app.route("/nueva-reserva", methods=["GET", "POST"])
 def reserva():
     # Se debe iniciar sesión para reservar sala
     if current_user.is_anonymous:
@@ -85,7 +114,7 @@ def reserva():
                 salaEnum = Salas.AULA
 
         nuevaReserva = Reserva(
-            id=ListaReservas.listaReservas.__len__() + 1,
+            id=listaReservas.listaReservas.__len__() + 1,
             profesor=Usuario(
                 current_user.id, current_user.nombre, current_user.email, 
                 current_user.contraseña, current_user.rango
@@ -94,9 +123,9 @@ def reserva():
             fecha=datetime.strptime(fecha, f"%Y-%m-%d").date()
         )
 
-        ListaReservas.addReserva(nuevaReserva)
-        print("Se ha creado una nueva mrseerva de {}".format(current_user.nombre))
-        return redirect(url_for("rservas"))
+        listaReservas.addReserva(nuevaReserva)
+        print("Se ha creado una nueva reserva de {}".format(current_user.nombre))
+        return redirect(url_for("reservas"))
 
     return render_template("reservas_form.html")
 
